@@ -13,7 +13,7 @@ jobs:
 
       - uses: mr-smithers-excellent/docker-build-push@v1.0
         with:
-          image: tan14007/clara_backend/docker_image
+          image: tan14007/clara_backend/clara_backend
           registry: docker.pkg.github.com
           dockerfile: Dockerfile
           username: tan14007

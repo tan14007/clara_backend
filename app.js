@@ -3,6 +3,9 @@ var bodyParser = require("body-parser");
 var cors = require("cors");
 var rabbitMQHandler = require("./connection");
 var path = require("path");
+var Redis = require("ioredis");
+var dotenv = require("dotenv");
+dotenv.config();
 
 var app = express();
 var router = express.Router();
@@ -14,7 +17,10 @@ var upload = multer({ dest: "uploads/" });
 var crypto = require("crypto");
 
 var CircularJSON = require("circular-json");
-const { isUndefined } = require("util");
+const { isUndefined, isNull } = require("util");
+const { exception } = require("console");
+const { SSL_OP_EPHEMERAL_RSA } = require("constants");
+const redis = new Redis(6379, process.env.REDIS_IP);
 
 rabbitMQHandler((connection) => {
   try {
@@ -28,8 +34,6 @@ rabbitMQHandler((connection) => {
   }
 });
 
-let results = [];
-
 app.use(cors());
 app.use(bodyParser.json({ extended: true, limit: "3mb" }));
 app.use("/static", express.static(path.join(__dirname, "src", "uploads")));
@@ -37,10 +41,6 @@ app.use("/api", router);
 
 app.post("/api/infer", upload.single("image"), (req, res, err) => {
   try {
-    // upload(req, res, err => {
-    //   console.error('Upload Error:', err)
-    //   throw err
-    // })
     const id = crypto.randomBytes(20).toString("hex");
     rabbitMQHandler((connection) => {
       connection.createChannel((err, channel) => {
@@ -48,13 +48,9 @@ app.post("/api/infer", upload.single("image"), (req, res, err) => {
           throw new Error(err);
         }
         var ex = "infer";
-
-        // const { socket, ...rest } = req
-        // for (const key in rest) console.log(key)
-
         var msg = CircularJSON.stringify({ task: req.body, id });
 
-        console.log("Adding", msg.slice(0, 1000));
+        // console.log("Adding", msg.slice(0, 1000));
 
         channel.assertQueue(ex, { durable: true });
         channel.sendToQueue(ex, Buffer.from(msg), {
@@ -85,18 +81,16 @@ app.post("/api/infer", upload.single("image"), (req, res, err) => {
 
 // app.use(bodyParser.json({ extended: true, limit: '3mb' }))
 
-router.route("/set-result").post(upload.none(), (req, res) => {
-  console.log("Setting result", res.body);
+router.route("/set-result").post(upload.none(), async (req, res) => {
+  console.log("Setting result for", req.body.id);
+  console.log("Setting result", req.body.result);
   try {
-    results.push({
-      id: req.body.id,
-      result: req.body.result,
-      time: new Date(),
-    });
+    const result = await redis.set(req.body.id, req.body.result);
     res.status(200).send({
-      message: "success",
+      message: result,
     });
   } catch (e) {
+    console.error(e);
     res.status(400).send({
       message: e,
     });
@@ -110,63 +104,64 @@ router.route("/get-all-results").get(upload.none(), (req, res) => {
   });
 });
 
-router.route("/get-results").get(upload.none(), (req, res) => {
-  try {
-    var el = results.reverse().find((el) => el.id === req.query.id);
-    var intvId = -1;
-    console.log(results);
-    res.writeHead(200, {
-      Connection: "keep-alive",
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      "Access-Control-Allow-Origin": "*",
-    });
+getResult = async (id) => {
+  console.log("Getting result for", id);
+  var ret = undefined;
+  await redis.get(id, (err, result) => {
+    if (err || isNull(result)) {
+      console.error("Error getting result:", err);
+      return ret;
+    }
+    console.log("Got", result);
+    ret = result;
+  });
 
-    res.flushHeaders();
-    let ct = 0;
-    intvId = setInterval(() => {
-      if (intvId === -1) return;
-      console.log("Intv", el);
-      console.log(intvId, req.query.id);
+  return ret;
+};
+
+sleep = (ms) => {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+};
+
+router.route("/get-results").get(upload.none(), async (req, res) => {
+  res.writeHead(200, {
+    Connection: "keep-alive",
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    "Access-Control-Allow-Origin": "*",
+  });
+
+  res.flushHeaders();
+  let ct = 0;
+
+  while (ct < 5) {
+    result = await getResult(req.query.id);
+    if (!isUndefined(result)) {
+      console.log("Sending back result", result);
+      res.write(
+        `data: ${JSON.stringify({
+          message: "success",
+          result: {
+            id: req.query.id,
+            confidence: result,
+          },
+        })}\n\n`
+      );
+      return;
+    } else {
+      console.error(`Tried ${ct} times of 5 times`);
       ct += 1;
-      if (ct > 5) {
-        console.log("Drop request:", req.query.id);
-        clearInterval(intvId);
-        throw "Request Timeout";
-      }
-      if (!isUndefined(el)) {
-        res.write(
-          `data: ${JSON.stringify({
-            message: "success",
-            result: {
-              id: req.query.id,
-              confidence: el.result,
-            },
-          })}\n\n`
-        );
-
-        clearInterval(intvId);
-        intvId = -1;
-      }
-      el = results.reverse().find((el) => el.id === req.query.id);
-    }, 3000);
-  } catch (e) {
+      await sleep(3000);
+    }
+  }
+  if (ct >= 5)
     res.status(400).send({
       message: e,
     });
-  }
 });
 
-clearResults = () => {
-  setTimeout(() => {
-    const tmpList = results.filter((el) => (new Date() - el.time) / 10000 > 30);
-    results = tmpList;
-    return clearResults();
-  }, 30000);
-};
-
-clearResults();
-
 server.listen(5555, "0.0.0.0", () => {
-  console.log("Running at at localhost:5555");
+  console.log("Running at localhost:5555");
 });

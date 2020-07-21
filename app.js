@@ -97,13 +97,6 @@ router.route("/set-result").post(upload.none(), async (req, res) => {
   }
 });
 
-router.route("/get-all-results").get(upload.none(), (req, res) => {
-  res.status(200).send({
-    message: "success",
-    results: results,
-  });
-});
-
 getResult = async (id) => {
   console.log("Getting result for", id);
   var ret = undefined;
@@ -126,20 +119,19 @@ sleep = (ms) => {
 };
 
 router.route("/get-results").get(upload.none(), async (req, res) => {
-  res.writeHead(200, {
-    Connection: "keep-alive",
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    "Access-Control-Allow-Origin": "*",
-  });
-
-  res.flushHeaders();
   let ct = 0;
 
   while (ct < 5) {
     result = await getResult(req.query.id);
     if (!isUndefined(result)) {
       console.log("Sending back result", result);
+      res.writeHead(200, {
+        Connection: "keep-alive",
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        "Access-Control-Allow-Origin": "*",
+      });
+      res.flushHeaders();
       res.write(
         `data: ${JSON.stringify({
           message: "success",
@@ -158,7 +150,7 @@ router.route("/get-results").get(upload.none(), async (req, res) => {
   }
   if (ct >= 5)
     res.status(400).send({
-      message: e,
+      message: "Error getting result for image id:" + req.query.id,
     });
 });
 

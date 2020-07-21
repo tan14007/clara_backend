@@ -98,11 +98,3 @@ spec:
           command: ["/bin/sh", "-c", "npm run start"]
           ports:
             - containerPort: 5555
-      # initContainers:
-      #   - name: clara-mq
-      #     image: rabbitmq
-      #     command: ["rabbitmq-server", "-detached"]
-      #     ports:
-      #       - containerPort: 5672
-      #       - containerPort: 15672
-      #       - containerPort: 15673

@@ -37,9 +37,8 @@ rabbitMQHandler((connection) => {
 app.use(cors());
 app.use(bodyParser.json({ extended: true, limit: "3mb" }));
 app.use("/static", express.static(path.join(__dirname, "src", "uploads")));
-app.use("/api", router);
 
-app.post("/api/infer", upload.single("image"), (req, res, err) => {
+app.post("/infer", upload.single("image"), (req, res, err) => {
   try {
     const id = crypto.randomBytes(20).toString("hex");
     rabbitMQHandler((connection) => {
@@ -81,7 +80,7 @@ app.post("/api/infer", upload.single("image"), (req, res, err) => {
 
 // app.use(bodyParser.json({ extended: true, limit: '3mb' }))
 
-router.route("/set-result").post(upload.none(), async (req, res) => {
+app.post("/set-result", upload.none(), async (req, res) => {
   console.log("Setting result for", req.body.id);
   console.log("Setting result", req.body.result);
   try {
@@ -118,7 +117,7 @@ sleep = (ms) => {
   });
 };
 
-router.route("/get-results").get(upload.none(), async (req, res) => {
+app.get("/get-results", upload.none(), async (req, res) => {
   let ct = 0;
 
   while (ct < 5) {

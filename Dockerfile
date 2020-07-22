@@ -19,4 +19,4 @@ WORKDIR /app
 # expose port 3000
 EXPOSE 3000 5555 
 
-ENTRYPOINT [ "/bin/sh", "-c", "redis-server --daemonize yes && npm run start" ]
+ENTRYPOINT [ "/bin/sh", "-c", "npm run start" ]

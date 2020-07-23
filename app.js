@@ -51,13 +51,13 @@ router
   .route("/static")
   .get(express.static(path.join(__dirname, "src", "uploads")));
 
-router.route("/health").get(upload.none(), (req, res) => {
+app.get("/api/health", upload.none(), (req, res) => {
   res.status(200).send({
     message: "OK",
   });
 });
 
-router.route("infer").post(upload.single("image"), (req, res, err) => {
+app.post("/api/infer", upload.single("image"), (req, res, err) => {
   try {
     const id = crypto.randomBytes(20).toString("hex");
     rabbitMQHandler((connection) => {
@@ -99,7 +99,7 @@ router.route("infer").post(upload.single("image"), (req, res, err) => {
 
 // app.use(bodyParser.json({ extended: true, limit: '3mb' }))
 
-router.route("/set-result").post(upload.none(), async (req, res) => {
+app.post("/api/set-result", upload.none(), async (req, res) => {
   console.log("Setting result for", req.body.id);
   console.log("Setting result", req.body.result);
   try {
@@ -136,7 +136,7 @@ sleep = (ms) => {
   });
 };
 
-router.route("/get-results").get(upload.none(), async (req, res) => {
+app.get("/api/get-results", upload.none(), async (req, res) => {
   let ct = 0;
 
   while (ct < 5) {

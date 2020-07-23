@@ -43,6 +43,10 @@ app.get("/", (req, res) =>
   res.status(200).send({ message: "root", status: "OK" })
 );
 
+app.get("/api", (req, res) =>
+  res.status(200).send({ message: "/api root", status: "OK" })
+);
+
 router
   .route("/static")
   .get(express.static(path.join(__dirname, "src", "uploads")));

@@ -39,6 +39,10 @@ app.use(cors());
 app.use(morgan("combined"));
 app.use(bodyParser.json({ extended: true, limit: "3mb" }));
 
+app.get("/", (req, res) =>
+  res.status(200).send({ message: "root", status: "OK" })
+);
+
 router
   .route("/static")
   .get(express.static(path.join(__dirname, "src", "uploads")));

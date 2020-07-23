@@ -3,6 +3,7 @@
 FROM alpine:latest
 
 RUN apk add npm
+RUN npm install nodemon
 
 ## Install dependencies in the root of the Container
 COPY package-lock.json package.json ./
@@ -19,4 +20,4 @@ WORKDIR /app
 # expose port 3000
 EXPOSE 3000 5555 
 
-ENTRYPOINT [ "/bin/sh", "-c", "npm run start" ]
+ENTRYPOINT [ "/bin/sh", "-c", "nodemon app.js" ]

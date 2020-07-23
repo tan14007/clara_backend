@@ -38,6 +38,12 @@ app.use(cors());
 app.use(bodyParser.json({ extended: true, limit: "3mb" }));
 app.use("/static", express.static(path.join(__dirname, "src", "uploads")));
 
+app.get("/health", upload.none(), (req, res) => {
+  res.status(200).send({
+    message: "OK",
+  });
+});
+
 app.post("/infer", upload.single("image"), (req, res, err) => {
   try {
     const id = crypto.randomBytes(20).toString("hex");

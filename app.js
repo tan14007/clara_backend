@@ -5,6 +5,7 @@ var rabbitMQHandler = require("./connection");
 var path = require("path");
 var Redis = require("ioredis");
 var dotenv = require("dotenv");
+var morgan = require("morgan");
 dotenv.config();
 
 var app = express();
@@ -35,6 +36,7 @@ rabbitMQHandler((connection) => {
 });
 
 app.use(cors());
+app.use(morgan("combined"));
 app.use(bodyParser.json({ extended: true, limit: "3mb" }));
 app.use("/static", express.static(path.join(__dirname, "src", "uploads")));
 
